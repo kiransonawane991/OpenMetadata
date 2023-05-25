@@ -1,0 +1,2 @@
+# this file for build and deploy of openmetadata using github, codebuild, ECR and ECS with EC2.
+
