@@ -1,2 +1,46 @@
 # this file for build and deploy of openmetadata using github, codebuild, ECR and ECS with EC2.
 
+version: 0.2
+
+phases:
+  install:
+    runtime-versions:
+      python: 3.8
+      java: corretto11
+    commands:
+      - apt-get update
+
+  pre_build:
+    commands:
+      - pip install awscli
+      - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 256137565845.dkr.ecr.us-east-1.amazonaws.com 
+
+      - python3 -m venv venv
+      - . venv/bin/activate
+      - make install_dev generate 
+      - yarn --version
+      - sudo make install_antlr_cli
+      - pwd
+
+  build:
+    commands:
+      - docker build -f docker/mysql/Dockerfile_mysql -t openmetadata-mysql:0.0.1 . 
+      - docker tag openmetadata-mysql:0.0.1 256137565845.dkr.ecr.us-east-1.amazonaws.com/openmetadata-mysql:0.0.1
+      - docker push 256137565845.dkr.ecr.us-east-1.amazonaws.com/openmetadata-mysql:0.0.1
+      
+      - docker build -f docker.elastic.co/elasticsearch/elasticsearch:7.10.2 -t openmetada-elasticsearch:0.0.1 .
+      - docker tag openmetada-elasticsearch:0.0.1 256137565845.dkr.ecr.us-east-1.amazonaws.com/openmetada-elasticsearch:0.0.1
+      - docker push 256137565845.dkr.ecr.us-east-1.amazonaws.com/openmetada-elasticsearch:0.0.1
+      
+      - docker build -f ingestion/Dockerfile.ci -t openmetadata-ingetion:0.0.1 .
+      - docker tag openmetadata-ingetion:0.0.1 256137565845.dkr.ecr.us-east-1.amazonaws.com/openmetadata-ingetion:0.0.1
+      - docker push 256137565845.dkr.ecr.us-east-1.amazonaws.com/openmetadata-ingetion:0.0.1
+      - mvn clean install -DskipTests
+      - docker build -f docker/development/Dockerfile -t prakashdata-server:0.0.1 .
+      - docker tag openmetadata-server:0.0.1 256137565845.dkr.ecr.us-east-1.amazonaws.com/openmetadata-server:0.0.1
+      - docker push 256137565845.dkr.ecr.us-east-1.amazonaws.com/openmetadata-server:0.0.1
+artifacts:
+  files:
+    - '**/*'
+  name: openmetadata-binary
+#   discard-paths: yes
